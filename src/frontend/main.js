@@ -1,15 +1,16 @@
 import { HttpAgent, Actor } from "@dfinity/agent";
 import { idlFactory as SocialIC_backend_idl } from "socialIc/src/declarations/socialIc_backend";  // Asegúrate de que esta ruta sea correcta
 
-// Declarar la constante para el ID del canister del frontend
+// Declarar la constante para el ID del canister del frontend y Backend
 const frontendCanisterId = "be2us-64aaa-aaaaa-qaabq-cai";
+const backendCanisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
 
 // Configurar el agente y el actor para interactuar con el canister
 async function setupActor() {
     const agent = new HttpAgent.create();
     const SocialIC_backend = Actor.createActor(SocialIC_backend_idl, {
         agent,
-        canisterId: "bkyz2-fmaaa-aaaaa-qaaaq-cai",  // Canister del Backend
+        canisterId: backendCanisterId,  // Canister del Backend
     });
 
     return SocialIC_backend;
@@ -43,21 +44,37 @@ setupActor().then(SocialIC_backend => {
     document.getElementById("login-form").addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        try {
-            const userPrincipal = await SocialIC_backend.whoAmI();
-            const userProfile = await SocialIC_backend.getMyProfile();
+        //Declaramos url de Api Internet Identity para Autenticación
+        const iiUrl = `https://identity.ic0.app/#authorize`;
+        const redirectUri = encodeURIComponent(`http://127.0.0.1:4943/home.html?canisterId=${frontendCanisterId}`);
+        const loginUrl = `${iiUrl}&redirect_uri=${redirectUri}&canisterId=${backendCanisterId}`;
 
-            if (userProfile) {
-                alert("Login successful! Redirecting to home...");
-                window.location.href = "http://127.0.0.1:4943/home.html?canisterId=${frontendCanisterId}";
-            } else {
-                alert("Login failed: No profile found. Please register first.");
-                window.location.href = "http://127.0.0.1:4943/register.html?canisterId=${frontendCanisterId}";
-            }
-        } catch (error) {
-            console.error("Error during login:", error);
-        }
+        //Redirigir a II para la auth
+        window.location.href = loginUrl;
+
     });
+
+    // ----- Logica para verificar el perfil en home.html ---
+
+    if (document.getElementById("home-page")) { // Solo se ejecuta en home.html
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const userProfile = await SocialIC_backend.getMyProfile();
+
+                if (userProfile) {
+                    // Si el perfil existe, muestra la página principal o sigue con la lógica de la aplicación
+                    console.log("Perfil encontrado:", userProfile);
+                    loadPosts(SocialIC_backend);
+                } else {
+                    // Si no hay perfil, redirige a la página de registro
+                    alert("No se encontró un perfil. Por favor, regístrate.");
+                    window.location.href = `http://127.0.0.1:4943/register.html?canisterId=${frontendCanisterId}`;
+                }
+            } catch (error) {
+                console.error("Error al verificar el perfil:", error);
+            }
+        });
+    };
 
     // --- Lógica para Crear y Gestionar Posts ---
     document.getElementById("post-form").addEventListener("submit", async (event) => {

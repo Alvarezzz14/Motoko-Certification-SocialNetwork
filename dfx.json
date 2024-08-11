@@ -5,6 +5,9 @@
       "type": "motoko"
     },
     "socialIc_frontend": {
+      "dependencies": [
+        "socialIc_backend"
+      ],
       "type": "assets",
       "source": ["src/frontend"]
     },
